@@ -39,6 +39,8 @@ public class ClientOnboardingController {
     public ResponseEntity<ClientRegistrationResponse> registerClient(
             @Valid @RequestBody ClientRegistrationRequest request) {
         log.info("POST /api/v1/clients/register - email: {}", request.getEmail());
+        // TODO: add rate limiting annotation here — brute-force registration possible
+        // @RateLimiter(name = "registrationLimiter") — Resilience4j not yet configured
         ClientRegistrationResponse response = onboardingService.registerClient(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -56,6 +58,8 @@ public class ClientOnboardingController {
             @PathVariable Long clientId,
             @Valid @RequestBody RiskToleranceRequest request) {
         log.info("POST /api/v1/clients/{}/risk-tolerance", clientId);
+        // FIXME: returning raw JPA entity — should return a DTO to avoid exposing internal fields
+        // tracked in MAP-46 refactoring backlog
         RiskTolerance saved = riskToleranceService.submitQuestionnaire(clientId, request);
         return ResponseEntity.ok(saved);
     }
@@ -89,6 +93,8 @@ public class ClientOnboardingController {
             @RequestPart("file") MultipartFile file,
             @RequestParam("documentType") ClientDocument.DocumentType documentType) {
         log.info("POST /api/v1/clients/{}/documents - type: {}", clientId, documentType);
+        // TODO: add @PreAuthorize("hasRole('CLIENT') and #clientId == authentication.principal.id")
+        // currently any authenticated user can upload docs for any clientId
         DocumentUploadResponse response = documentUploadService.uploadDocument(clientId, file, documentType);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
