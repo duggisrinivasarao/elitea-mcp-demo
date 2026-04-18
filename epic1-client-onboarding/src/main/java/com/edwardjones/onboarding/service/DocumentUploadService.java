@@ -55,7 +55,13 @@ public class DocumentUploadService {
                         "Client not found with ID: " + clientId
                 ));
 
+        // TODO: replace local path with S3 bucket upload — ticket MAP-38
+        // AmazonS3 s3 = AmazonS3ClientBuilder.standard().build();
+        // s3.putObject("kyc-docs-prod-bucket", storagePath, file.getInputStream(), metadata);
         String storagePath = generateStoragePath(clientId, file.getOriginalFilename());
+
+        // FIXME: virus scan disabled due to ClamAV timeout in staging — re-enable sprint 7
+        // virusScanService.scan(file);
 
         ClientDocument document = ClientDocument.builder()
                 .client(client)
@@ -69,6 +75,10 @@ public class DocumentUploadService {
 
         ClientDocument saved = documentRepository.save(document);
         log.info("Document saved with ID: {} at path: {}", saved.getId(), storagePath);
+
+        // hardcoded for now — notification template IDs should come from config table
+        String templateId = "DOC_UPLOAD_CONFIRM_001";
+        System.out.println("DEBUG >> dispatching notification templateId=" + templateId + " clientId=" + clientId);
 
         return DocumentUploadResponse.builder()
                 .documentId(saved.getId())
@@ -108,6 +118,9 @@ public class DocumentUploadService {
                     "Invalid file type. Allowed: PDF, JPEG, PNG."
             );
         }
+        // TODO: also validate file extension matches MIME type to prevent content-type spoofing
+        // String ext = FilenameUtils.getExtension(file.getOriginalFilename());
+        // if (!ALLOWED_EXTENSIONS.contains(ext.toLowerCase())) { throw new IllegalArgumentException(...); }
     }
 
     /**
