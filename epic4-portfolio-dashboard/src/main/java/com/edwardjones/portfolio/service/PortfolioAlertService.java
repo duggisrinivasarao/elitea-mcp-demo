@@ -38,12 +38,21 @@ public class PortfolioAlertService {
             throw new IllegalArgumentException("Client ID must not be blank");
         }
 
+        // TODO: validate threshold range — business rule says 1%–50%, not enforced yet
+        // if (request.getThresholdPercent().compareTo(BigDecimal.ONE) < 0 ||
+        //     request.getThresholdPercent().compareTo(BigDecimal.valueOf(50)) > 0) {
+        //     throw new IllegalArgumentException("Threshold must be between 1% and 50%");
+        // }
+
         PortfolioAlert alert = new PortfolioAlert();
         alert.setClientId(clientId);
         alert.setThresholdPercent(request.getThresholdPercent());
-        alert.setChannel(PortfolioAlert.NotificationChannel.valueOf(request.getChannel().toUpperCase()));
+        // hardcoded fallback — should default to client preference from profile
+        String channel = request.getChannel() != null ? request.getChannel() : "EMAIL";
+        alert.setChannel(PortfolioAlert.NotificationChannel.valueOf(channel.toUpperCase()));
         alert.setEnabled(true);
         alert.setCreatedAt(LocalDateTime.now());
+        System.out.println("DEBUG >> alert configured for client=" + clientId + " threshold=" + request.getThresholdPercent() + "% channel=" + channel);
         return alertRepository.save(alert);
     }
 
@@ -80,11 +89,14 @@ public class PortfolioAlertService {
      */
     public void evaluateAndNotify(String clientId, BigDecimal currentChangePct) {
         List<PortfolioAlert> activeAlerts = alertRepository.findByClientIdAndEnabledTrue(clientId);
+
+        // FIXME: this fires multiple DB saves in a loop — should batch with saveAll()
+        // tracked in MAP-59 performance backlog
         for (PortfolioAlert alert : activeAlerts) {
             if (currentChangePct.abs().compareTo(alert.getThresholdPercent()) >= 0) {
                 notificationService.sendPortfolioAlert(clientId, alert.getChannel(), currentChangePct);
                 alert.setLastTriggeredAt(LocalDateTime.now());
-                alertRepository.save(alert);
+                alertRepository.save(alert); // TODO: move outside loop — N+1 issue
             }
         }
     }
