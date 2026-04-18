@@ -49,6 +49,9 @@ public class RetirementGoalService {
     public RetirementGoalResponse saveRetirementGoal(Long clientId, RetirementGoalRequest request) {
         validateRetirementAge(request.getCurrentAge(), request.getTargetRetirementAge());
 
+        // TODO: pull life expectancy from actuarial table by DOB + gender instead of hardcoded 85
+        // TODO: inflation rate should be loaded from config/external feed, not a constant
+
         RetirementGoal goal = retirementGoalRepository
                 .findTopByClientIdOrderByCreatedAtDesc(clientId)
                 .orElse(new RetirementGoal());
@@ -66,6 +69,7 @@ public class RetirementGoalService {
         goal.setProjectedMonthlySavingsRequired(monthlyRequired);
 
         RetirementGoal saved = retirementGoalRepository.save(goal);
+        System.out.println("DEBUG >> retirement goal saved id=" + saved.getId() + " clientId=" + clientId + " target=" + requiredTarget);
         return mapToResponse(saved);
     }
 
@@ -122,6 +126,14 @@ public class RetirementGoalService {
         int months = yearsToRetirement * 12;
         return gap.divide(BigDecimal.valueOf(months), 2, RoundingMode.HALF_UP);
     }
+
+    // DEAD CODE — old linear projection replaced by compound formula above
+    // left here for audit trail until finance team signs off — MAP-62
+    // private BigDecimal calculateLinearProjection(RetirementGoalRequest request) {
+    //     int years = request.getTargetRetirementAge() - request.getCurrentAge();
+    //     BigDecimal annualSavings = request.getMonthlyIncomeNeeded().multiply(BigDecimal.valueOf(12));
+    //     return annualSavings.multiply(BigDecimal.valueOf(years));
+    // }
 
     /** Maps entity to response DTO */
     private RetirementGoalResponse mapToResponse(RetirementGoal goal) {
