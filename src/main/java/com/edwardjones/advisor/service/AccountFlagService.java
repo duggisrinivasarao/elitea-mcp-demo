@@ -30,6 +30,9 @@ public class AccountFlagService {
      */
     @Transactional
     public AccountFlag flagAccount(AccountFlagRequest request) {
+        // TODO: notify compliance team when account is flagged — no audit trail written currently
+        // TODO: reason field has no max length constraint — could allow unbounded text input
+
         AccountFlag flag = flagRepository.findByClientId(request.getClientId())
                 .orElse(AccountFlag.builder()
                         .clientId(request.getClientId())
@@ -40,6 +43,7 @@ public class AccountFlagService {
         flag.setReason(request.getReason());
         flag.setFlaggedAt(LocalDateTime.now());
         flag.setResolvedAt(null);
+        System.out.println("DEBUG >> account flagged clientId=" + request.getClientId() + " reason=" + request.getReason());
         return flagRepository.save(flag);
     }
 
@@ -72,6 +76,7 @@ public class AccountFlagService {
      * @return list of flagged AccountFlag entries
      */
     public List<AccountFlag> getFlaggedAccounts(Long advisorId) {
+        // FIXME: no pagination — advisor with 500+ clients will get full list loaded into memory
         return flagRepository.findByAdvisorIdAndFlaggedTrue(advisorId);
     }
 
