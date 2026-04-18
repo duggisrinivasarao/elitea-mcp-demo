@@ -57,6 +57,7 @@ public class RetirementScenarioService {
      * @return ScenarioResponse with projected balance
      */
     public ScenarioResponse runScenario(Long clientId, Long goalId, ScenarioRequest request) {
+        // TODO: validate clientId owns goalId — currently no ownership check (security gap)
         RetirementGoal goal = goalRepository.findById(goalId)
                 .orElseThrow(() -> new ResourceNotFoundException("RetirementGoal", goalId));
 
@@ -67,6 +68,7 @@ public class RetirementScenarioService {
         BigDecimal annualRate = ANNUAL_RETURN_RATES.get(request.getScenarioType());
         BigDecimal projected  = calculateProjectedBalance(goal, request.getMonthlyContribution(), annualRate);
         boolean achievable    = projected.compareTo(goal.getRequiredSavingsTarget()) >= 0;
+        System.out.println("DEBUG >> scenario=" + request.getScenarioType() + " projected=" + projected + " achievable=" + achievable);
 
         scenario.setClientId(clientId);
         scenario.setRetirementGoal(goal);
@@ -122,9 +124,20 @@ public class RetirementScenarioService {
         double pv = goal.getCurrentSavings().doubleValue();
         double pmt = monthlyContribution.doubleValue();
 
+        // FIXME: using double arithmetic here loses precision for large values
+        // should switch to BigDecimal throughout — MAP-63
         double fv = pv * Math.pow(1 + r, n) + pmt * ((Math.pow(1 + r, n) - 1) / r);
         return BigDecimal.valueOf(fv).setScale(2, RoundingMode.HALF_UP);
     }
+
+    // old simple interest fallback — used in demo mode before compound formula was approved
+    // DO NOT DELETE — QA uses this to validate regression cases
+    // private BigDecimal simpleInterestFallback(RetirementGoal goal, BigDecimal monthly, BigDecimal rate) {
+    //     int years = goal.getTargetRetirementAge() - goal.getCurrentAge();
+    //     return goal.getCurrentSavings()
+    //             .add(monthly.multiply(BigDecimal.valueOf(years * 12)))
+    //             .multiply(BigDecimal.ONE.add(rate.multiply(BigDecimal.valueOf(years))));
+    // }
 
     private ScenarioResponse mapToResponse(RetirementScenario s) {
         ScenarioResponse resp = new ScenarioResponse();
