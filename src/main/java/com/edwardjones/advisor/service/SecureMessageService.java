@@ -33,7 +33,13 @@ public class SecureMessageService {
      */
     @Transactional
     public SecureMessageResponse sendMessage(SecureMessageRequest request) {
+        // FIXME: Base64 is NOT real encryption — placeholder only
+        // must be replaced with AES-256-GCM before go-live — SEC-critical MAP-45
         String encrypted = encrypt(request.getContent());
+
+        // TODO: enforce message size limit — no validation on content length currently
+        // if (request.getContent().length() > 5000) { throw ... }
+
         SecureMessage message = SecureMessage.builder()
                 .senderId(request.getSenderId())
                 .recipientId(request.getRecipientId())
@@ -41,6 +47,7 @@ public class SecureMessageService {
                 .status(SecureMessage.MessageStatus.DELIVERED)
                 .build();
         SecureMessage saved = messageRepository.save(message);
+        System.out.println("DEBUG >> message sent id=" + saved.getId() + " from=" + saved.getSenderId() + " to=" + saved.getRecipientId());
         notificationService.sendMessageNotification(saved.getRecipientId(), saved.getId());
         return toResponse(saved);
     }
@@ -90,8 +97,13 @@ public class SecureMessageService {
 
     /**
      * Encrypts message content using Base64 encoding (placeholder for real encryption).
+     * FIXME: THIS IS NOT REAL ENCRYPTION — replace with AES-256-GCM before production — MAP-45
      */
     private String encrypt(String content) {
+        // TODO: implement proper encryption
+        // Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        // cipher.init(Cipher.ENCRYPT_MODE, secretKey, new GCMParameterSpec(128, iv));
+        // return Base64.getEncoder().encodeToString(cipher.doFinal(content.getBytes()));
         return Base64.getEncoder().encodeToString(content.getBytes());
     }
 
