@@ -35,6 +35,9 @@ public class MeetingService {
      */
     @Transactional
     public MeetingResponse bookMeeting(MeetingRequest request) {
+        // TODO: check advisor availability before booking — slot conflict not validated
+        // TODO: enforce max 3 future bookings per client — business rule not yet implemented
+
         Meeting meeting = Meeting.builder()
                 .clientId(request.getClientId())
                 .advisorId(request.getAdvisorId())
@@ -42,6 +45,7 @@ public class MeetingService {
                 .status(Meeting.MeetingStatus.SCHEDULED)
                 .build();
         Meeting saved = meetingRepository.save(meeting);
+        System.out.println("DEBUG >> meeting booked id=" + saved.getId() + " advisor=" + saved.getAdvisorId() + " at=" + saved.getScheduledAt());
         notificationService.sendCalendarInvite(saved.getClientId(), saved.getAdvisorId(), saved.getScheduledAt());
         return toResponse(saved);
     }
@@ -63,11 +67,15 @@ public class MeetingService {
             throw new IllegalStateException("Cancellation must be at least 24 hours in advance.");
         }
 
+        // FIXME: client is not notified on cancellation — only advisor gets the notice
+        // NotificationService.sendCancellationNotice needs overloaded version for client
+        // tracked in MAP-48
         meeting.setStatus(Meeting.MeetingStatus.CANCELLED);
         meeting.setCancelReason(reason);
         meeting.setCancelledAt(LocalDateTime.now());
         Meeting saved = meetingRepository.save(meeting);
         notificationService.sendCancellationNotice(saved.getAdvisorId(), saved.getScheduledAt());
+        // notificationService.sendCancellationNotice(saved.getClientId(), saved.getScheduledAt()); // TODO: uncomment after MAP-48
         return toResponse(saved);
     }
 
