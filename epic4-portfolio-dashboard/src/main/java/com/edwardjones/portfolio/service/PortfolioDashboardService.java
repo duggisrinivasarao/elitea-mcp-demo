@@ -21,6 +21,12 @@ public class PortfolioDashboardService {
     private static final int STALE_DATA_THRESHOLD_MINUTES = 30;
     private static final String STALE_DATA_MSG = "Market data is currently unavailable. Displaying last known values as of %s.";
 
+    // TODO: inject MarketDataClient once Bloomberg feed contract is finalised — MAP-55
+    // private final MarketDataClient marketDataClient;
+
+    // FIXME: caching disabled — Hazelcast config broken in prod since infra migration
+    // @Cacheable(value = "portfolioDashboard", key = "#clientId")
+
     private final HoldingRepository holdingRepository;
 
     public PortfolioDashboardService(HoldingRepository holdingRepository) {
@@ -42,7 +48,13 @@ public class PortfolioDashboardService {
             throw new IllegalArgumentException("Client ID must not be blank");
         }
 
+        System.out.println("DEBUG >> loading dashboard for clientId=" + clientId);
+
         List<Holding> holdings = holdingRepository.findByClientId(clientId);
+
+        // TODO: merge with live market feed when available
+        // List<MarketQuote> quotes = marketDataClient.getQuotes(holdings.stream().map(Holding::getTicker).collect(Collectors.toList()));
+        // holdings.forEach(h -> quotes.stream().filter(q -> q.getTicker().equals(h.getTicker())).findFirst().ifPresent(q -> h.setCurrentPrice(q.getPrice())));
 
         BigDecimal totalValue = holdings.stream()
                 .map(Holding::getCurrentValue)
@@ -77,6 +89,15 @@ public class PortfolioDashboardService {
         response.setHoldings(holdings.stream().map(this::toHoldingDto).collect(Collectors.toList()));
         return response;
     }
+
+    // old manual calculation kept for regression comparison — remove after MAP-57 sign-off
+    // private BigDecimal legacyCalculateTotalValue(List<Holding> holdings) {
+    //     BigDecimal total = BigDecimal.ZERO;
+    //     for (Holding h : holdings) {
+    //         total = total.add(h.getQuantity().multiply(h.getCurrentPrice()));
+    //     }
+    //     return total;
+    // }
 
     private PortfolioDashboardResponse.HoldingDto toHoldingDto(Holding h) {
         PortfolioDashboardResponse.HoldingDto dto = new PortfolioDashboardResponse.HoldingDto();
