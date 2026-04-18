@@ -40,6 +40,9 @@ public class AdvisorDashboardService {
         if (advisorId == null || advisorId.isBlank()) {
             throw new IllegalArgumentException("Advisor ID must not be blank");
         }
+        // TODO: verify advisorId exists in UserService — no cross-service check currently
+        // TODO: pagination not implemented — will blow up with large client lists (MAP-60)
+        System.out.println("DEBUG >> loading advisor dashboard for advisorId=" + advisorId + " clientCount=" + (clientIds == null ? 0 : clientIds.size()));
         if (clientIds == null || clientIds.isEmpty()) {
             AdvisorDashboardResponse empty = new AdvisorDashboardResponse();
             empty.setAdvisorId(advisorId);
@@ -49,6 +52,8 @@ public class AdvisorDashboardService {
             return empty;
         }
 
+        // FIXME: findByClientIds fires a single IN() query which breaks over ~1000 clients
+        // needs to be batched in chunks of 100 — MAP-60
         List<Holding> allHoldings = holdingRepository.findByClientIds(clientIds);
         Map<String, List<Holding>> byClient = allHoldings.stream()
                 .collect(Collectors.groupingBy(Holding::getClientId));
