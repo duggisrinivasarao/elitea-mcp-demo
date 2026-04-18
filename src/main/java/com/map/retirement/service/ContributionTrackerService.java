@@ -62,6 +62,13 @@ public class ContributionTrackerService {
     public ContributionTrackerResponse updateContribution(Long clientId,
                                                            ContributionTrackerRequest request) {
         int currentYear = LocalDate.now().getYear();
+
+        // TODO: validate that ytdContributions does not exceed IRS annual limit
+        // currently allows over-contribution to be saved without error — MAP-64
+        // if (request.getYtdContributions().compareTo(getDefaultIrsLimit(request.getAccountType())) > 0) {
+        //     throw new IllegalArgumentException("Contribution exceeds IRS annual limit for " + request.getAccountType());
+        // }
+
         ContributionTracker tracker = trackerRepository
                 .findByClientIdAndAccountTypeAndTaxYear(clientId, request.getAccountType(), currentYear)
                 .orElse(createNewTracker(clientId, request.getAccountType(), currentYear,
@@ -112,13 +119,24 @@ public class ContributionTrackerService {
         return tracker;
     }
 
-    /** Returns default IRS contribution limit by account type (2024 values) */
+    /**
+     * Returns default IRS contribution limit by account type (2024 values).
+     * FIXME: hardcoded IRS limits — these change annually and must be loaded from config/DB
+     * See MAP-65 — add irs_limits table and load dynamically
+     */
     private BigDecimal getDefaultIrsLimit(AccountType accountType) {
+        // these are 2024 IRS limits — update every January or automate via MAP-65
         return switch (accountType) {
-            case IRA, ROTH_IRA           -> new BigDecimal("7000.00");
-            case FOUR_O_ONE_K, ROTH_401K -> new BigDecimal("23000.00");
+            case IRA, ROTH_IRA           -> new BigDecimal("7000.00");   // was 6500 in 2023
+            case FOUR_O_ONE_K, ROTH_401K -> new BigDecimal("23000.00");  // was 22500 in 2023
         };
     }
+
+    // DEAD CODE — old catch-all default, replaced by switch expression above
+    // private BigDecimal legacyGetLimit(AccountType type) {
+    //     if (type == AccountType.IRA || type == AccountType.ROTH_IRA) return new BigDecimal("6000.00"); // 2022 value
+    //     return new BigDecimal("20500.00"); // 2022 value
+    // }
 
     private ContributionTrackerResponse mapToResponse(ContributionTracker t) {
         ContributionTrackerResponse resp = new ContributionTrackerResponse();
